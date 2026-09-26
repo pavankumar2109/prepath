@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 
 // Default starter assessment questions
@@ -107,9 +108,20 @@ export default function Home() {
   const [solvedCount, setSolvedCount] = useState(0);
   const [interviewCount, setInterviewCount] = useState(0);
 
+  // User Auth State
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState(null);
+
   // Load from LocalStorage on mount
   useEffect(() => {
     try {
+      const savedUser = localStorage.getItem('prepath_user');
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+      } else {
+        router.push('/login');
+      }
+
       const savedAssessment = localStorage.getItem('placement_assessment');
       if (savedAssessment) setAssessmentResult(JSON.parse(savedAssessment));
 
@@ -127,7 +139,12 @@ export default function Home() {
     } catch (err) {
       console.error('Failed to load LocalStorage data:', err);
     }
-  }, []);
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('prepath_user');
+    router.push('/login');
+  };
 
   // Sync state to LocalStorage
   const saveAssessmentResult = (data) => {
@@ -322,9 +339,27 @@ export default function Home() {
             <p>Smart Next.js 14 Preparation Engine for Campus Placements</p>
           </div>
         </div>
-        <div className="api-badge">
-          <span className="dot"></span>
-          <span>Google Gemini 1.5 Flash Active</span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {currentUser && (
+            <div className="user-profile-widget">
+              <div className="user-avatar">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="user-info">
+                <div className="user-name">{currentUser.name}</div>
+                <div className="user-role">{currentUser.targetRole || 'Software Candidate'}</div>
+              </div>
+              <button className="btn-logout" title="Log Out" onClick={handleLogout}>
+                🚪
+              </button>
+            </div>
+          )}
+
+          <div className="api-badge">
+            <span className="dot"></span>
+            <span>Google Gemini 1.5 Flash Active</span>
+          </div>
         </div>
       </header>
 
