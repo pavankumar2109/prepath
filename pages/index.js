@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { TOP_10_QUESTIONS_DATA } from '../data/top10Questions';
+import { COMPANY_PACKS_DATA } from '../data/companyPacks';
 
 // Default starter assessment questions
 const ASSESSMENT_QUESTIONS = [
@@ -109,6 +110,19 @@ export default function Home() {
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [interviewAnswersLog, setInterviewAnswersLog] = useState([]);
   const [interviewFinalReport, setInterviewFinalReport] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechRecognition, setSpeechRecognition] = useState(null);
+
+  // Resume Analyzer State
+  const [resumeText, setResumeText] = useState('');
+  const [targetRole, setTargetRole] = useState('Software Engineer');
+  const [targetCompany, setTargetCompany] = useState('');
+  const [resumeAnalysis, setResumeAnalysis] = useState(null);
+  const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
+
+  // Company Packs State
+  const [activeCompanyTrack, setActiveCompanyTrack] = useState('MAANG_STANDARD');
 
   // Platform Analytics / Stats
   const [solvedCount, setSolvedCount] = useState(0);
@@ -119,6 +133,28 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState(null);
 
   // Load from LocalStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setUserInterviewAnswer((prev) => prev + (prev ? ' ' : '') + finalTranscript);
+        }
+      };
+      recognition.onend = () => setIsRecording(false);
+      setSpeechRecognition(recognition);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('prepath_user');
@@ -324,6 +360,52 @@ export default function Home() {
     }
   };
 
+  const toggleRecording = () => {
+    if (!speechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+    if (isRecording) {
+      speechRecognition.stop();
+      setIsRecording(false);
+    } else {
+      speechRecognition.start();
+      setIsRecording(true);
+    }
+  };
+
+  const speakText = (text) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Action 6: Analyze Resume
+  const handleAnalyzeResume = async () => {
+    if (!resumeText.trim()) {
+      alert('Please paste your resume text to analyze.');
+      return;
+    }
+    setIsAnalyzingResume(true);
+    setResumeAnalysis(null);
+    try {
+      const response = await axios.post('/api/claude', {
+        action: 'analyzeResume',
+        data: { resumeText, targetRole, targetCompany }
+      });
+      if (response.data?.success) {
+        setResumeAnalysis(response.data.result);
+      }
+    } catch (err) {
+      alert('Failed to analyze resume. Please try again.');
+    } finally {
+      setIsAnalyzingResume(false);
+    }
+  };
+
   // Helper for Roadmap filters
   const filteredRoadmap = roadmap.filter(item => {
     if (roadmapFilter === 'All') return true;
@@ -409,6 +491,18 @@ export default function Home() {
           onClick={() => setActiveTab('progress')}
         >
           <span className="tab-icon">📊</span> Progress & Analytics
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'resume' ? 'active' : ''}`}
+          onClick={() => setActiveTab('resume')}
+        >
+          <span className="tab-icon">📄</span> Resume AI
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'company' ? 'active' : ''}`}
+          onClick={() => setActiveTab('company')}
+        >
+          <span className="tab-icon">🏢</span> Company Packs
         </button>
       </nav>
 
@@ -973,6 +1067,54 @@ export default function Home() {
                         </pre>
                       </div>
                     )}
+
+                    {/* AI Evaluation Score Dashboard (Matching Detailed Breakdown UI) */}
+                    <div className="ai-eval-dashboard">
+                      <div className="ai-eval-title">
+                        <span>AI Evaluation Score</span>
+                      </div>
+
+                      <div className="ai-eval-score-main">
+                        {solutionEval.score} <span className="max-score">/100</span>
+                      </div>
+
+                      <div className="eval-bar-track">
+                        <div 
+                          className={`eval-bar-fill ${solutionEval.score >= 80 ? 'high' : solutionEval.score >= 50 ? 'medium' : 'low'}`}
+                          style={{ width: `${Math.min(Math.max(solutionEval.score, 0), 100)}%` }}
+                        />
+                      </div>
+
+                      <div className="ai-eval-subtitle">Detailed Score Breakdown</div>
+
+                      <div className="eval-metrics-grid">
+                        {[
+                          { label: 'Code Quality', key: 'codeQuality', fallback: 80 },
+                          { label: 'Security', key: 'security', fallback: 55 },
+                          { label: 'Efficiency', key: 'efficiency', fallback: 60 },
+                          { label: 'Testing', key: 'testing', fallback: 0 },
+                          { label: 'Accessibility', key: 'accessibility', fallback: 30 },
+                          { label: 'Problem Statement Alignment', key: 'problemAlignment', fallback: 83 }
+                        ].map((item) => {
+                          const val = solutionEval.detailedBreakdown?.[item.key] ?? item.fallback;
+                          const fillClass = val >= 75 ? 'high' : val >= 45 ? 'medium' : 'low';
+                          return (
+                            <div key={item.key} className="eval-metric-card">
+                              <div className="eval-metric-header">
+                                <div className="eval-metric-label">
+                                  <span className="eval-metric-icon">⚐</span>
+                                  <span>{item.label}</span>
+                                </div>
+                                <div className="eval-metric-score">{val}</div>
+                              </div>
+                              <div className="eval-mini-bar-track">
+                                <div className={`eval-mini-bar-fill ${fillClass}`} style={{ width: `${Math.min(Math.max(val, 0), 100)}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1092,12 +1234,27 @@ export default function Home() {
                         </div>
                       </div>
 
+                      <div className="voice-controls-panel" style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+                        <button 
+                          className={`btn ${isRecording ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={toggleRecording}
+                        >
+                          {isRecording ? '🛑 Stop Recording' : '🎙️ Answer with Voice'}
+                        </button>
+                        <button 
+                          className={`btn ${isSpeaking ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => speakText(interviewSession.questions[currentQuestionIdx]?.question)}
+                        >
+                          {isSpeaking ? '🔇 Stop Audio' : '🔊 Hear Question'}
+                        </button>
+                      </div>
+
                       <div className="form-group" style={{ marginTop: '1.5rem' }}>
                         <label className="form-label">Your Answer Response</label>
                         <textarea
                           className="form-control"
                           style={{ minHeight: '140px' }}
-                          placeholder="Type your response clearly here..."
+                          placeholder="Type your response clearly here or use voice..."
                           value={userInterviewAnswer}
                           onChange={e => setUserInterviewAnswer(e.target.value)}
                         />
@@ -1255,6 +1412,54 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+
+                  {/* AI Evaluation Score Dashboard (Matching Detailed Breakdown UI) */}
+                  <div className="ai-eval-dashboard" style={{ marginTop: '2.5rem' }}>
+                    <div className="ai-eval-title">
+                      <span>AI Evaluation Score</span>
+                    </div>
+
+                    <div className="ai-eval-score-main">
+                      {solutionEval ? solutionEval.score : 63.86} <span className="max-score">/100</span>
+                    </div>
+
+                    <div className="eval-bar-track">
+                      <div 
+                        className={`eval-bar-fill ${(solutionEval ? solutionEval.score : 63.86) >= 80 ? 'high' : 'medium'}`}
+                        style={{ width: `${Math.min(Math.max(solutionEval ? solutionEval.score : 63.86, 0), 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="ai-eval-subtitle">Detailed Score Breakdown</div>
+
+                    <div className="eval-metrics-grid">
+                      {[
+                        { label: 'Code Quality', key: 'codeQuality', fallback: 80 },
+                        { label: 'Security', key: 'security', fallback: 55 },
+                        { label: 'Efficiency', key: 'efficiency', fallback: 60 },
+                        { label: 'Testing', key: 'testing', fallback: 0 },
+                        { label: 'Accessibility', key: 'accessibility', fallback: 30 },
+                        { label: 'Problem Statement Alignment', key: 'problemAlignment', fallback: 83 }
+                      ].map((item) => {
+                        const val = solutionEval?.detailedBreakdown?.[item.key] ?? item.fallback;
+                        const fillClass = val >= 75 ? 'high' : val >= 45 ? 'medium' : 'low';
+                        return (
+                          <div key={item.key} className="eval-metric-card">
+                            <div className="eval-metric-header">
+                              <div className="eval-metric-label">
+                                <span className="eval-metric-icon">⚐</span>
+                                <span>{item.label}</span>
+                              </div>
+                              <div className="eval-metric-score">{val}</div>
+                            </div>
+                            <div className="eval-mini-bar-track">
+                              <div className={`eval-mini-bar-fill ${fillClass}`} style={{ width: `${Math.min(Math.max(val, 0), 100)}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="empty-state">
@@ -1262,6 +1467,146 @@ export default function Home() {
                   <h3>No Assessment Data Found</h3>
                   <p style={{ margin: '0.5rem 0 1.5rem' }}>Take the 6-question assessment to unlock detailed analytics and domain breakdown graphs.</p>
                   <button className="btn btn-primary" onClick={() => setActiveTab('assessment')}>Take Assessment Now</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 6: RESUME ANALYZER */}
+        {/* ==================================================================== */}
+        {activeTab === 'resume' && (
+          <div>
+            <div className="glass-card">
+              <h2 className="card-title">AI Resume/ATS Evaluator</h2>
+              <p className="card-subtitle">
+                Paste your resume content here. Our AI will grade it against your target role and company, identifying missing keywords and structural flaws.
+              </p>
+              
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Target Role</label>
+                  <input type="text" className="form-control" value={targetRole} onChange={e => setTargetRole(e.target.value)} placeholder="e.g. Frontend Developer" />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Target Company (Optional)</label>
+                  <input type="text" className="form-control" value={targetCompany} onChange={e => setTargetCompany(e.target.value)} placeholder="e.g. Google" />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Paste Resume Content (Text)</label>
+                <textarea 
+                  className="form-control" 
+                  style={{ minHeight: '250px' }} 
+                  value={resumeText} 
+                  onChange={e => setResumeText(e.target.value)}
+                  placeholder="Paste the raw text of your resume here..."
+                />
+              </div>
+
+              <button className="btn btn-primary" onClick={handleAnalyzeResume} disabled={isAnalyzingResume}>
+                {isAnalyzingResume ? 'Analyzing...' : 'Evaluate Resume'}
+              </button>
+
+              {resumeAnalysis && (
+                <div className="feedback-card" style={{ marginTop: '2rem' }}>
+                  <div className="feedback-header">
+                    <div>
+                      <span className={`badge ${resumeAnalysis.atsScore >= 75 ? 'badge-easy' : (resumeAnalysis.atsScore >= 50 ? 'badge-medium' : 'badge-hard')}`} style={{ fontSize: '1rem' }}>
+                        ATS Score: {resumeAnalysis.atsScore} / 100
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.2rem', marginTop: '1rem' }}>{resumeAnalysis.summary}</p>
+
+                  <div className="areas-grid" style={{ marginBottom: '1.2rem' }}>
+                    <div>
+                      <h4 style={{ color: 'var(--success)', marginBottom: '0.5rem' }}>Strengths</h4>
+                      <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {resumeAnalysis.strengths?.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 style={{ color: 'var(--warning)', marginBottom: '0.5rem' }}>Missing Keywords</h4>
+                      <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {resumeAnalysis.missingKeywords?.map((k, i) => <li key={i}>{k}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>Actionable Improvements</h4>
+                    <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      {resumeAnalysis.actionableImprovements?.map((a, i) => <li key={i}>{a}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 7: COMPANY PACKS */}
+        {/* ==================================================================== */}
+        {activeTab === 'company' && (
+          <div>
+            <div className="glass-card">
+              <h2 className="card-title">Company Placement Packs</h2>
+              <p className="card-subtitle">Select a target company to view their specific interview patterns, focus areas, and hiring principles.</p>
+
+              <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '1rem' }}>
+                {COMPANY_PACKS_DATA && Object.keys(COMPANY_PACKS_DATA).map(key => (
+                  <button 
+                    key={key} 
+                    className={`btn ${activeCompanyTrack === key ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveCompanyTrack(key)}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {COMPANY_PACKS_DATA[key].name}
+                  </button>
+                ))}
+              </div>
+
+              {activeCompanyTrack && COMPANY_PACKS_DATA && COMPANY_PACKS_DATA[activeCompanyTrack] && (
+                <div className="company-pack-content" style={{ marginTop: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-light)', marginBottom: '1rem' }}>
+                    {COMPANY_PACKS_DATA[activeCompanyTrack].name} Focus Topics
+                  </h3>
+                  
+                  <div className="metrics-row">
+                    {COMPANY_PACKS_DATA[activeCompanyTrack].focusTopics.map((topic, i) => (
+                      <div key={i} className="metric-card">
+                        <div className="metric-label">TOPIC</div>
+                        <div className="metric-value" style={{ fontSize: '1.2rem', color: 'var(--info)' }}>{topic}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '2rem 0 1rem', color: 'var(--success)' }}>
+                    Interview Rounds
+                  </h3>
+                  <div className="areas-grid">
+                    {COMPANY_PACKS_DATA[activeCompanyTrack].rounds.map((round, i) => (
+                      <div key={i} className="glass-card" style={{ padding: '1rem' }}>
+                        <h4 style={{ fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>{round.name}</h4>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{round.focus}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '2rem 0 1rem', color: 'var(--warning)' }}>
+                    Core Principles / Leadership Traits
+                  </h3>
+                  <ul style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', listStyle: 'none' }}>
+                    {COMPANY_PACKS_DATA[activeCompanyTrack].principles.map((principle, i) => (
+                      <li key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.8rem', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                        ✓ {principle}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

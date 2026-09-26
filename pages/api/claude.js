@@ -20,6 +20,8 @@ export default async function handler(req, res) {
         return await handleStartInterview(data, apiKey, res);
       case 'interviewEvaluate':
         return await handleInterviewEvaluate(data, apiKey, res);
+      case 'analyzeResume':
+        return await handleAnalyzeResume(data, apiKey, res);
       default:
         return res.status(400).json({ error: 'Invalid action provided.' });
     }
@@ -189,6 +191,14 @@ async function handleEvaluateSolution(data, apiKey, res) {
   {
     "status": "Passed" | "Needs Improvement" | "Failed",
     "score": number (0-100),
+    "detailedBreakdown": {
+      "codeQuality": number (0-100),
+      "security": number (0-100),
+      "efficiency": number (0-100),
+      "testing": number (0-100),
+      "accessibility": number (0-100),
+      "problemAlignment": number (0-100)
+    },
     "timeComplexity": string (e.g. "O(N log N)"),
     "spaceComplexity": string (e.g. "O(N)"),
     "keyStrengths": [ array of strengths ],
@@ -437,11 +447,19 @@ function generateFallbackProblem(topic, difficulty) {
 
 function generateFallbackSolutionEvaluation(problem, solution, language) {
   const isLong = solution && solution.length > 30;
-  const score = isLong ? 90 : 65;
+  const score = isLong ? 83.5 : 63.86;
 
   return {
     status: score >= 80 ? 'Passed' : 'Needs Improvement',
     score: score,
+    detailedBreakdown: {
+      codeQuality: isLong ? 88 : 80,
+      security: isLong ? 72 : 55,
+      efficiency: isLong ? 85 : 60,
+      testing: isLong ? 40 : 0,
+      accessibility: isLong ? 60 : 30,
+      problemAlignment: isLong ? 92 : 83
+    },
     timeComplexity: 'O(N)',
     spaceComplexity: 'O(1)',
     keyStrengths: [
@@ -449,12 +467,12 @@ function generateFallbackSolutionEvaluation(problem, solution, language) {
       'Correct edge case handling for empty or single element input'
     ],
     areasToImprove: [
-      'Consider adding brief inline comments for algorithmic steps',
-      'Ensure memory allocation is minimal during loop iterations'
+      'Consider adding unit test assertion validation',
+      'Improve accessibility and input sanitization / error boundaries'
     ],
     feedback: isLong
       ? 'Great job! Your solution handles the core logic efficiently with optimal time and space complexity.'
-      : 'Your code structure is readable, but make sure to account for negative values and boundary constraints.',
+      : 'Your code structure is readable, but make sure to account for edge cases and boundary constraints.',
     optimizedSolution: `// Optimal ${language.toUpperCase()} Solution\n// Time Complexity: O(N), Space Complexity: O(1)\n${solution}`
   };
 }
@@ -511,10 +529,86 @@ function generateFallbackInterviewEvaluate(mode, currentQuestionIndex, answer, h
     isComplete,
     finalReport: isComplete ? {
       overallScore: 8.2,
-      performanceSummary: `Excellent performance across the ${mode} interview session. You demonstrated strong problem-solving acumen, articulate explanations, and high placement readiness.`,
-      strengths: ["Strong technical foundation", "Structured delivery (STAR approach)", "Confident communication"],
       improvements: ["Elaborate on edge cases in technical questions", "Quantify metrics in situational answers"],
       recommendations: ["Practice timed coding challenges", "Review advanced system design patterns", "Mock interview twice weekly"]
     } : null
   };
 }
+
+async function handleAnalyzeResume(data, apiKey, res) {
+  const { resumeText, targetRole = 'Software Development Engineer', targetCompany = 'Top Tech' } = data || {};
+
+  const prompt = `
+  You are an expert Technical Recruiter and ATS (Applicant Tracking System) reviewer for top tech companies.
+  Analyze the following candidate resume for the target role: "${targetRole}" at "${targetCompany}".
+  
+  Candidate Resume Content:
+  """
+  ${resumeText}
+  """
+
+  Evaluate the resume and return a structured JSON response with the following schema:
+  {
+    "atsScore": number (0-100),
+    "grade": "Strong Match" | "Moderate Match" | "Needs Revision",
+    "summary": string (3-4 sentence evaluation of resume strength and alignment),
+    "detectedKeywords": [ array of relevant technical keywords found in resume ],
+    "missingKeywords": [ array of high-priority keywords/skills missing for ${targetRole} ],
+    "bulletPointCritiques": [
+      {
+        "original": string (a weak or improvable bullet point from their resume),
+        "issue": string (why it is weak e.g. lack of metrics, passive tone),
+        "improved": string (rewritten bullet using Google XYZ formula: Accomplished [X] as measured by [Y] by doing [Z])
+      }
+    ],
+    "formattingTips": [ array of 3-4 actionable tips for ATS layout and structure ],
+    "hiringVerdict": string (honest assessment of callback likelihood and final recommendations)
+  }
+  `;
+
+  try {
+    const result = await callGemini(prompt, apiKey, "You are a senior tech recruiter and resume optimization expert.");
+    return res.status(200).json({ success: true, result });
+  } catch (err) {
+    console.warn('Using fallback for analyzeResume API:', err.message);
+    const fallback = generateFallbackResumeAnalysis(resumeText, targetRole, targetCompany);
+    return res.status(200).json({ success: true, result: fallback, isFallback: true });
+  }
+}
+
+function generateFallbackResumeAnalysis(resumeText = '', targetRole = 'Software Engineer', targetCompany = 'Top Tech') {
+  const textLower = resumeText.toLowerCase();
+  
+  const keywordsPool = ['react', 'next.js', 'javascript', 'typescript', 'node.js', 'python', 'java', 'sql', 'dsa', 'aws', 'docker', 'git', 'rest api', 'mongodb', 'postgresql'];
+  const detected = keywordsPool.filter(kw => textLower.includes(kw));
+  const missing = keywordsPool.filter(kw => !textLower.includes(kw)).slice(0, 5);
+
+  const atsScore = Math.min(92, Math.max(58, 60 + detected.length * 4));
+
+  return {
+    atsScore,
+    grade: atsScore >= 80 ? "Strong Match" : atsScore >= 65 ? "Moderate Match" : "Needs Revision",
+    summary: `Your resume demonstrates relevant foundational coursework and skills for the ${targetRole} position at ${targetCompany}. Incorporating quantifiable metrics and missing modern tooling will significantly boost your ATS keyword ranking and callback rate.`,
+    detectedKeywords: detected.length > 0 ? detected : ['JavaScript', 'HTML/CSS', 'Git', 'Problem Solving'],
+    missingKeywords: missing.length > 0 ? missing : ['Microservices Architecture', 'System Design', 'CI/CD Pipelines', 'Docker Containerization'],
+    bulletPointCritiques: [
+      {
+        original: "Worked on building responsive web components and fixed UI bugs in the application.",
+        issue: "Lacks quantifiable metrics, scale impact, and specific technical stack ownership.",
+        improved: "Engineered 15+ reusable React/Next.js UI components, improving page load speed by 35% and reducing customer-reported UI defects by 40%."
+      },
+      {
+        original: "Created backend REST APIs for user authentication and database operations.",
+        issue: "Generic phrasing without mentioning security standards or database throughput.",
+        improved: "Designed and deployed JWT-authenticated REST APIs using Node.js & PostgreSQL, handling 2,000+ daily requests with under 120ms latency."
+      }
+    ],
+    formattingTips: [
+      "Use single-column layout without complex tables or textboxes that confuse ATS scanners.",
+      "Ensure all project bullet points begin with strong action verbs (Engineered, Architected, Optimized).",
+      "Include a dedicated 'Technical Skills' section categorizing Languages, Frameworks, Databases, and Tools."
+    ],
+    hiringVerdict: `Good potential for ${targetRole} campus hiring rounds. With the bullet point enhancements and added metrics, this resume will comfortably pass automated ATS screeners.`
+  };
+}
+
