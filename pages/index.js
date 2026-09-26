@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { TOP_10_QUESTIONS_DATA } from '../data/top10Questions';
-import { COMPANY_PACKS_DATA } from '../data/companyPacks';
+
 
 // Default starter assessment questions
 const ASSESSMENT_QUESTIONS = [
@@ -121,8 +121,6 @@ export default function Home() {
   const [resumeAnalysis, setResumeAnalysis] = useState(null);
   const [isAnalyzingResume, setIsAnalyzingResume] = useState(false);
 
-  // Company Packs State
-  const [activeCompanyTrack, setActiveCompanyTrack] = useState('MAANG_STANDARD');
 
   // Platform Analytics / Stats
   const [solvedCount, setSolvedCount] = useState(0);
@@ -498,12 +496,7 @@ export default function Home() {
         >
           <span className="tab-icon">📄</span> Resume AI
         </button>
-        <button
-          className={`tab-btn ${activeTab === 'company' ? 'active' : ''}`}
-          onClick={() => setActiveTab('company')}
-        >
-          <span className="tab-icon">🏢</span> Company Packs
-        </button>
+
       </nav>
 
       {/* Main Content Area */}
@@ -1548,70 +1541,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ==================================================================== */}
-        {/* TAB 7: COMPANY PACKS */}
-        {/* ==================================================================== */}
-        {activeTab === 'company' && (
-          <div>
-            <div className="glass-card">
-              <h2 className="card-title">Company Placement Packs</h2>
-              <p className="card-subtitle">Select a target company to view their specific interview patterns, focus areas, and hiring principles.</p>
 
-              <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', marginBottom: '1rem' }}>
-                {COMPANY_PACKS_DATA && Object.keys(COMPANY_PACKS_DATA).map(key => (
-                  <button 
-                    key={key} 
-                    className={`btn ${activeCompanyTrack === key ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setActiveCompanyTrack(key)}
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    {COMPANY_PACKS_DATA[key].name}
-                  </button>
-                ))}
-              </div>
-
-              {activeCompanyTrack && COMPANY_PACKS_DATA && COMPANY_PACKS_DATA[activeCompanyTrack] && (
-                <div className="company-pack-content" style={{ marginTop: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary-light)', marginBottom: '1rem' }}>
-                    {COMPANY_PACKS_DATA[activeCompanyTrack].name} Focus Topics
-                  </h3>
-                  
-                  <div className="metrics-row">
-                    {COMPANY_PACKS_DATA[activeCompanyTrack].focusTopics.map((topic, i) => (
-                      <div key={i} className="metric-card">
-                        <div className="metric-label">TOPIC</div>
-                        <div className="metric-value" style={{ fontSize: '1.2rem', color: 'var(--info)' }}>{topic}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '2rem 0 1rem', color: 'var(--success)' }}>
-                    Interview Rounds
-                  </h3>
-                  <div className="areas-grid">
-                    {COMPANY_PACKS_DATA[activeCompanyTrack].rounds.map((round, i) => (
-                      <div key={i} className="glass-card" style={{ padding: '1rem' }}>
-                        <h4 style={{ fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>{round.name}</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{round.focus}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '2rem 0 1rem', color: 'var(--warning)' }}>
-                    Core Principles / Leadership Traits
-                  </h3>
-                  <ul style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', listStyle: 'none' }}>
-                    {COMPANY_PACKS_DATA[activeCompanyTrack].principles.map((principle, i) => (
-                      <li key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.8rem', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                        ✓ {principle}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </main>
 
       {/* Footer */}

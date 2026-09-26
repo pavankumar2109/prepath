@@ -1,6 +1,5 @@
-export const COMPANY_PACKS_DATA = [
-  {
-    id: 'amazon',
+export const COMPANY_PACKS_DATA = {
+  amazon: {
     name: 'Amazon',
     logo: '📦',
     tier: 'Tier 1 Product',
@@ -17,10 +16,9 @@ export const COMPANY_PACKS_DATA = [
       { lp: 'Bias for Action', question: 'Give an example of a calculated risk you took where speed was more critical than having complete data.' },
       { lp: 'Deliver Results', question: 'How did you handle a project with tight deadlines when an unexpected roadblock occurred?' }
     ],
-    highFrequencyTopics: ['Binary Trees & BFS/DFS', 'LRU Cache & Hash Maps', 'Two Pointers & Sliding Window', 'Object Oriented Design (LLD)']
+    focusTopics: ['Binary Trees & BFS/DFS', 'LRU Cache & Hash Maps', 'Two Pointers & Sliding Window', 'Object Oriented Design (LLD)']
   },
-  {
-    id: 'google',
+  google: {
     name: 'Google',
     logo: '🔍',
     tier: 'Tier 1 Product',
@@ -35,10 +33,9 @@ export const COMPANY_PACKS_DATA = [
       { lp: 'Handling Ambiguity', question: 'Describe a project where the problem requirements were vague. How did you define scope?' },
       { lp: 'Constructive Disagreement', question: 'Tell me about a time you disagreed with a senior engineer or teammate on technical direction.' }
     ],
-    highFrequencyTopics: ['Graph Traversals & Shortest Path', 'Dynamic Programming on Grids & Trees', 'Trie & Prefix Trees', 'Concurrency & Big-O Scaling']
+    focusTopics: ['Graph Traversals & Shortest Path', 'Dynamic Programming on Grids & Trees', 'Trie & Prefix Trees', 'Concurrency & Big-O Scaling']
   },
-  {
-    id: 'microsoft',
+  microsoft: {
     name: 'Microsoft',
     logo: '🪟',
     tier: 'Tier 1 Product',
@@ -53,10 +50,9 @@ export const COMPANY_PACKS_DATA = [
       { lp: 'Growth Mindset', question: 'Tell me about a technical skill or framework you taught yourself from scratch in under two weeks.' },
       { lp: 'Customer Focus & Empathy', question: 'Describe how you incorporated direct user feedback to improve an application feature.' }
     ],
-    highFrequencyTopics: ['Linked List Reversal & Fast/Slow Pointers', 'Binary Search Variants', 'Recursion & Backtracking', 'OS Process Synchronization']
+    focusTopics: ['Linked List Reversal & Fast/Slow Pointers', 'Binary Search Variants', 'Recursion & Backtracking', 'OS Process Synchronization']
   },
-  {
-    id: 'service_tier',
+  service_tier: {
     name: 'TCS / Infosys / Accenture (Service Giants)',
     logo: '🏢',
     tier: 'Mass Hiring / IT Services',
@@ -71,6 +67,6 @@ export const COMPANY_PACKS_DATA = [
       { lp: 'Adaptability & Shift Flexibility', question: 'Are you open to working across different technology stacks and geographic locations?' },
       { lp: 'Team Collaboration', question: 'Tell me about your contribution in your college final year capstone project.' }
     ],
-    highFrequencyTopics: ['Percentages, Profit & Loss, Time & Work', 'String Palindromes & Matrix Manipulations', 'OOPs 4 Pillars (Polymorphism, Inheritance, etc.)', 'Basic SQL Joins & Aggregate Functions']
+    focusTopics: ['Percentages, Profit & Loss, Time & Work', 'String Palindromes & Matrix Manipulations', 'OOPs 4 Pillars (Polymorphism, Inheritance, etc.)', 'Basic SQL Joins & Aggregate Functions']
   }
-];
+};
