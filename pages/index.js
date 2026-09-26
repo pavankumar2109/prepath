@@ -310,7 +310,7 @@ export default function Home() {
   return (
     <div className="app-container">
       <Head>
-        <title>AI Placement Prep Platform - Next.js & Gemini AI</title>
+        <title>PrePath - AI Placement Prep Platform</title>
       </Head>
 
       {/* Header Bar */}
@@ -318,7 +318,7 @@ export default function Home() {
         <div className="brand-logo">
           <div className="logo-icon">⚡</div>
           <div className="brand-text">
-            <h1>Placement AI Prep</h1>
+            <h1>PrePath</h1>
             <p>Smart Next.js 14 Preparation Engine for Campus Placements</p>
           </div>
         </div>
@@ -1076,7 +1076,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>AI Placement Prep Platform • Powered by Next.js 14 & Google Gemini 1.5 Flash</p>
+        <p>PrePath • Powered by Next.js 14 & Google Gemini 1.5 Flash</p>
       </footer>
     </div>
   );

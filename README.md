@@ -1,4 +1,4 @@
-# AI Placement Prep Platform ⚡
+# PrePath ⚡
 
 A complete, production-ready AI-powered Placement Preparation Platform built with **Next.js 14**, **React 18**, and **Google Gemini API** (`gemini-1.5-flash`). Zero backend database required (uses browser `LocalStorage`).
 

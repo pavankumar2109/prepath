@@ -5,7 +5,7 @@ export default function App({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <title>AI Placement Prep Platform - Comprehensive Preparation Suite</title>
+        <title>PrePath - AI Placement Prep Platform</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content="AI-powered placement preparation platform for engineering and software roles. Personal assessment, 30-day roadmap, coding practice, and mock interviews." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
