@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import { TOP_10_QUESTIONS_DATA } from '../data/top10Questions';
 
 // Default starter assessment questions
 const ASSESSMENT_QUESTIONS = [
@@ -82,6 +83,11 @@ export default function Home() {
   const [roadmap, setRoadmap] = useState([]);
   const [completedDays, setCompletedDays] = useState({});
   const [roadmapFilter, setRoadmapFilter] = useState('All');
+  const [roadmapViewMode, setRoadmapViewMode] = useState('30days'); // '30days' | 'top10'
+  const [top10Domain, setTop10Domain] = useState('dsa');
+  const [expandedQId, setExpandedQId] = useState(null);
+  const [openSolutionId, setOpenSolutionId] = useState(null);
+  const [top10Solved, setTop10Solved] = useState({});
 
   // Practice State
   const [practiceTopic, setPracticeTopic] = useState('Arrays');
@@ -131,6 +137,9 @@ export default function Home() {
       const savedDays = localStorage.getItem('placement_completed_days');
       if (savedDays) setCompletedDays(JSON.parse(savedDays));
 
+      const savedTop10 = localStorage.getItem('prepath_top10_solved');
+      if (savedTop10) setTop10Solved(JSON.parse(savedTop10));
+
       const savedSolved = localStorage.getItem('placement_solved_count');
       if (savedSolved) setSolvedCount(parseInt(savedSolved, 10) || 0);
 
@@ -140,6 +149,12 @@ export default function Home() {
       console.error('Failed to load LocalStorage data:', err);
     }
   }, [router]);
+
+  const toggleTop10Solved = (qId) => {
+    const updated = { ...top10Solved, [qId]: !top10Solved[qId] };
+    setTop10Solved(updated);
+    localStorage.setItem('prepath_top10_solved', JSON.stringify(updated));
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('prepath_user');
@@ -533,79 +548,224 @@ export default function Home() {
         )}
 
         {/* ==================================================================== */}
-        {/* TAB 2: ROADMAP */}
+        {/* TAB 2: ROADMAP & TOP 10 QUESTIONS */}
         {/* ==================================================================== */}
         {activeTab === 'roadmap' && (
           <div>
             <div className="glass-card">
-              <div className="roadmap-header">
-                <div>
-                  <h2 className="card-title">Personalized 30-Day Preparation Roadmap</h2>
-                  <p className="card-subtitle">
-                    AI-curated day-by-day plan targeting your specific weak areas. Track your daily completion progress below.
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-light)' }}>
-                    {completedDaysCount} / {roadmap.length || 30} Days Completed ({roadmapProgressPct}%)
-                  </div>
-                  <div className="progress-bar-bg" style={{ width: '220px', marginTop: '0.5rem' }}>
-                    <div className="progress-bar-fill" style={{ width: `${roadmapProgressPct}%` }}></div>
-                  </div>
-                </div>
+              {/* View Toggle Bar */}
+              <div className="view-toggle-bar">
+                <button
+                  className={`view-toggle-btn ${roadmapViewMode === '30days' ? 'active' : ''}`}
+                  onClick={() => setRoadmapViewMode('30days')}
+                >
+                  <span>🗓️</span> 30-Day Personalized Plan
+                </button>
+                <button
+                  className={`view-toggle-btn ${roadmapViewMode === 'top10' ? 'active' : ''}`}
+                  onClick={() => setRoadmapViewMode('top10')}
+                >
+                  <span>🔥</span> Top 10 Must-Solve Questions
+                </button>
               </div>
 
-              <div className="filter-pills" style={{ marginBottom: '1.5rem' }}>
-                {['All', 'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Pending', 'Completed'].map(f => (
-                  <button
-                    key={f}
-                    className={`pill-btn ${roadmapFilter === f ? 'active' : ''}`}
-                    onClick={() => setRoadmapFilter(f)}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-
-              {roadmap.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">🗺️</div>
-                  <h3>No Roadmap Generated Yet</h3>
-                  <p style={{ margin: '0.5rem 0 1.5rem' }}>Please complete the AI Assessment tab to generate your tailored 30-day preparation roadmap.</p>
-                  <button className="btn btn-primary" onClick={() => setActiveTab('assessment')}>Go to Assessment Tab</button>
-                </div>
-              ) : (
-                <div className="roadmap-list">
-                  {filteredRoadmap.map(item => {
-                    const isDone = !!completedDays[item.day];
-                    return (
-                      <div key={item.day} className={`day-card ${isDone ? 'completed' : ''}`}>
-                        <div className="day-card-top">
-                          <span className="day-badge">Day {item.day}</span>
-                          <span className="time-badge">⏱️ {item.timeEstimate}</span>
-                        </div>
-                        <h3 className="day-title">{item.topic}</h3>
-                        <p className="day-desc">{item.description}</p>
-
-                        {item.resources && item.resources.length > 0 && (
-                          <ul className="resource-list">
-                            {item.resources.map((res, rIdx) => (
-                              <li key={rIdx} className="resource-item">{res}</li>
-                            ))}
-                          </ul>
-                        )}
-
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={isDone}
-                            onChange={() => toggleDayCompletion(item.day)}
-                          />
-                          <span>{isDone ? 'Marked as Completed ✓' : 'Mark Day Completed'}</span>
-                        </label>
+              {roadmapViewMode === '30days' ? (
+                <>
+                  <div className="roadmap-header">
+                    <div>
+                      <h2 className="card-title">Personalized 30-Day Preparation Roadmap</h2>
+                      <p className="card-subtitle">
+                        AI-curated day-by-day plan targeting your specific weak areas. Track your daily completion progress below.
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-light)' }}>
+                        {completedDaysCount} / {roadmap.length || 30} Days Completed ({roadmapProgressPct}%)
                       </div>
-                    );
-                  })}
+                      <div className="progress-bar-bg" style={{ width: '220px', marginTop: '0.5rem' }}>
+                        <div className="progress-bar-fill" style={{ width: `${roadmapProgressPct}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="filter-pills" style={{ marginBottom: '1.5rem' }}>
+                    {['All', 'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Pending', 'Completed'].map(f => (
+                      <button
+                        key={f}
+                        className={`pill-btn ${roadmapFilter === f ? 'active' : ''}`}
+                        onClick={() => setRoadmapFilter(f)}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+
+                  {roadmap.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">🗺️</div>
+                      <h3>No Roadmap Generated Yet</h3>
+                      <p style={{ margin: '0.5rem 0 1.5rem' }}>Please complete the AI Assessment tab to generate your tailored 30-day preparation roadmap.</p>
+                      <button className="btn btn-primary" onClick={() => setActiveTab('assessment')}>Go to Assessment Tab</button>
+                    </div>
+                  ) : (
+                    <div className="roadmap-list">
+                      {filteredRoadmap.map(item => {
+                        const isDone = !!completedDays[item.day];
+                        return (
+                          <div key={item.day} className={`day-card ${isDone ? 'completed' : ''}`}>
+                            <div className="day-card-top">
+                              <span className="day-badge">Day {item.day}</span>
+                              <span className="time-badge">⏱️ {item.timeEstimate}</span>
+                            </div>
+                            <h3 className="day-title">{item.topic}</h3>
+                            <p className="day-desc">{item.description}</p>
+
+                            {item.resources && item.resources.length > 0 && (
+                              <ul className="resource-list">
+                                {item.resources.map((res, rIdx) => (
+                                  <li key={rIdx} className="resource-item">{res}</li>
+                                ))}
+                              </ul>
+                            )}
+
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={isDone}
+                                onChange={() => toggleDayCompletion(item.day)}
+                              />
+                              <span>{isDone ? 'Marked as Completed ✓' : 'Mark Day Completed'}</span>
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* TOP 10 QUESTIONS ACCORDION VIEW */
+                <div>
+                  <div className="roadmap-header">
+                    <div>
+                      <h2 className="card-title">Top 10 High-Yield Placement Questions</h2>
+                      <p className="card-subtitle">
+                        Curated essential interview problems with hints, optimal solution code, and interactive progress tracking.
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {(() => {
+                        const currentList = TOP_10_QUESTIONS_DATA[top10Domain]?.questions || [];
+                        const domainSolvedCount = currentList.filter(q => top10Solved[q.id]).length;
+                        const domainPct = Math.round((domainSolvedCount / currentList.length) * 100) || 0;
+                        return (
+                          <>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--success)' }}>
+                              {domainSolvedCount} / {currentList.length} Solved ({domainPct}%)
+                            </div>
+                            <div className="progress-bar-bg" style={{ width: '220px', marginTop: '0.5rem' }}>
+                              <div className="progress-bar-fill high" style={{ width: `${domainPct}%` }}></div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Domain Focus Selector */}
+                  <div className="top10-domain-selector">
+                    {[
+                      { key: 'dsa', label: '🚀 Data Structures & Algorithms', count: TOP_10_QUESTIONS_DATA.dsa?.questions.length },
+                      { key: 'webdev', label: '🌐 Web Development & Full Stack', count: TOP_10_QUESTIONS_DATA.webdev?.questions.length },
+                      { key: 'dbms', label: '🗄️ DBMS & SQL Queries', count: TOP_10_QUESTIONS_DATA.dbms?.questions.length },
+                      { key: 'os', label: '⚙️ Operating Systems & Networking', count: TOP_10_QUESTIONS_DATA.os?.questions.length }
+                    ].map(d => (
+                      <button
+                        key={d.key}
+                        className={`domain-pill-btn ${top10Domain === d.key ? 'active' : ''}`}
+                        onClick={() => {
+                          setTop10Domain(d.key);
+                          setExpandedQId(null);
+                        }}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Top 10 Questions Accordion List */}
+                  <div className="top10-accordion-list">
+                    {(TOP_10_QUESTIONS_DATA[top10Domain]?.questions || []).map((q, idx) => {
+                      const isSolved = !!top10Solved[q.id];
+                      const isOpen = expandedQId === q.id;
+                      const isSolutionOpen = openSolutionId === q.id;
+
+                      const diffClass = q.difficulty === 'Easy' ? 'badge-easy' : q.difficulty === 'Medium' ? 'badge-medium' : 'badge-hard';
+
+                      return (
+                        <div key={q.id} className={`accordion-item ${isSolved ? 'solved' : ''}`}>
+                          <div
+                            className="accordion-header"
+                            onClick={() => setExpandedQId(isOpen ? null : q.id)}
+                          >
+                            <div className="accordion-left">
+                              <span className="q-index-badge">#{idx + 1}</span>
+                              <div className="q-title">
+                                <span>{q.title}</span>
+                                <span className={`badge ${diffClass}`}>{q.difficulty}</span>
+                              </div>
+                            </div>
+
+                            <div className="accordion-actions" onClick={e => e.stopPropagation()}>
+                              <button
+                                className={`solve-toggle-btn ${isSolved ? 'is-solved' : ''}`}
+                                onClick={() => toggleTop10Solved(q.id)}
+                              >
+                                <span>{isSolved ? '✓ Solved' : '○ Mark as Solved'}</span>
+                              </button>
+                              <span
+                                className={`expand-chevron ${isOpen ? 'open' : ''}`}
+                                onClick={() => setExpandedQId(isOpen ? null : q.id)}
+                                style={{ cursor: 'pointer', padding: '0.4rem' }}
+                              >
+                                ▼
+                              </span>
+                            </div>
+                          </div>
+
+                          {isOpen && (
+                            <div className="accordion-content">
+                              <div className="q-description">
+                                <strong>Problem Description:</strong>
+                                <p style={{ marginTop: '0.3rem', color: 'var(--text-muted)' }}>{q.description}</p>
+                              </div>
+
+                              {q.hint && (
+                                <div className="concept-hint-box">
+                                  <strong>💡 Key Concept Hint:</strong>
+                                  <p style={{ marginTop: '0.2rem' }}>{q.hint}</p>
+                                </div>
+                              )}
+
+                              <div>
+                                <button
+                                  className="solution-toggle-btn"
+                                  onClick={() => setOpenSolutionId(isSolutionOpen ? null : q.id)}
+                                >
+                                  <span>{isSolutionOpen ? 'Hide Optimal Solution' : '⚡ View Optimal Solution Approach'}</span>
+                                </button>
+
+                                {isSolutionOpen && (
+                                  <pre className="solution-code-box">
+                                    {q.approach}
+                                  </pre>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
